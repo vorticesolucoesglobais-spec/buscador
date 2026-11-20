@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VOTICE INVESTIGADOR 24/7</title>
+<style>
+:root{--bg:#090b0f;--card:#131920;--line:#22385a;--tx:#e8edf4;--mu:#aab6c6;--blue:#7fb0e6;--green:#3ddc84;--red:#ff6b6b;--gold:#f5c542}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:400 15px system-ui,sans-serif}
+.w{max-width:1160px;margin:auto;padding:18px}.bar{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:12px;flex-wrap:wrap;gap:10px}
+.tabs{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap}.tabs button{padding:10px 16px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--tx);cursor:pointer}
+.tabs button.on{background:var(--blue);color:#000;font-weight:700}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:14px}
+label{display:grid;gap:5px;margin-top:10px;font-size:14px}input,select,textarea{width:100%;padding:10px;border-radius:8px;background:#0e131a;color:var(--tx);border:1px solid var(--line)}
+.btn{padding:10px 16px;border:0;border-radius:8px;background:var(--blue);color:#000;font-weight:700;cursor:pointer;margin-top:10px}.btn.out{background:transparent;border:1px solid var(--blue);color:var(--tx)}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left}
+.hidden{display:none!important}.big{font-size:24px;font-weight:800}.mut{color:var(--mu);font-size:13px}.ok{color:var(--green)}.err{color:var(--red)}
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="bar">
+    <div><b>VÓRTICE</b> • INVESTIGADOR AUTÔNOMO 24/7</div>
+    <div><span id="statusBadge" class="mut">Carregando...</span> <a href="/auth/logout" style="color:var(--blue);margin-left:12px">Sair</a></div>
+  </div>
+
+  <div class="tabs">
+    <button class="on" onclick="aba('dash',this)">📊 Dashboard</button>
+    <button onclick="aba('nova',this)">🔍 Nova Investigação</button>
+    <button onclick="aba('excel',this)">📗 Excel do Mês</button>
+    <button onclick="aba('config',this)">⚙️ Configurações</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="p-dash">
+    <div class="grid">
+      <div class="card"><div class="mut">EXCEL DO MÊS (ONEDRIVE)</div><div class="big" id="dMes">-</div><a class="btn" href="/api/excel/baixar">⬇ Baixar .xlsx</a> <button class="btn out" onclick="cmd('E')">☁ Sincronizar OneDrive</button></div>
+      <div class="card"><div class="mut">EMPRESAS NO MÊS</div><div class="big" id="dTotal">0</div><div class="mut">Sempre entram como Aguardando Revisão</div></div>
+      <div class="card"><div class="mut">REGIÃO ATIVA / PROGRESSO</div><div class="big" id="dRegiao">-</div><div class="mut" id="dProg">0 / 0 cidades</div></div>
+    </div>
+    <div class="card">
+      <h3>Controle Rápido (Atalhos: P = Pausar | R = Retomar | S = Salvar/Sair | E = Exportar)</h3>
+      <button class="btn out" onclick="cmd('P')">⏸ Pausar (P)</button>
+      <button class="btn out" onclick="cmd('R')">▶ Retomar (R)</button>
+      <button class="btn out" onclick="cmd('S')">💾 Salvar e Parar (S)</button>
+      <button class="btn out" onclick="cmd('E')">☁ Exportar Agora (E)</button>
+      <p id="cmdMsg" class="ok"></p>
+    </div>
+    <div class="card"><h3>Log de Auditoria</h3><div id="dLogs" class="mut"></div></div>
+  </div>
+
+  <!-- NOVA INVESTIGAÇÃO -->
+  <div id="p-nova" class="hidden">
+    <div class="card">
+      <h3>Iniciar Varredura Contínua (9 Modos)</h3>
+      <label>Modo de Busca
+        <select id="modo" onchange="ajustarCampos()">
+          <option value="estado">A - Por Estado</option>
+          <option value="macro">B - Por Macrorregião</option>
+          <option value="nacional">C - Nacional (Brasil Inteiro - 5.570 cidades)</option>
+          <option value="raio">D - Por Raio (Centro + km)</option>
+          <option value="metro">E - Região Metropolitana / Microrregião</option>
+          <option value="cidade">F - Uma Cidade Só (não pula para outra)</option>
+          <option value="pop">G - Por População (Mínima e Máxima)</option>
+          <option value="varias">H - Várias Cidades (uma por linha)</option>
+          <option value="combinada">I - Combinada (Raio + População + Estado)</option>
+        </select>
+      </label>
+      <div id="cEstado"><label>Sigla do Estado (ex: SP, RJ, MG)<input id="estado" value="SP"></label></div>
+      <div id="cMacro" class="hidden"><label>Macrorregião<select id="macro"><option>Sudeste</option><option>Sul</option><option>Nordeste</option><option>Centro-Oeste</option><option>Norte</option></select></label></div>
+      <div id="cRaio" class="hidden"><label>Cidade Centro<input id="centro" value="Porto Feliz - SP"></label><label>Raio em km<input id="raio_km" type="number" value="100"></label></div>
+      <div id="cMetro" class="hidden"><label>Região Metropolitana / Microrregião<input id="metro" placeholder="Ex: Campinas"></label></div>
+      <div id="cCidade" class="hidden"><label>Uma Cidade Só<input id="cidade_unica" value="Porto Feliz - SP"></label></div>
+      <div id="cPop" class="hidden"><label>População Mínima<input id="pop_min" type="number" value="10000"></label><label>População Máxima<input id="pop_max" type="number" value="50000"></label></div>
+      <div id="cVarias" class="hidden"><label>Cidades (uma por linha)<textarea id="varias_cidades" rows="4">Porto Feliz - SP&#10;Tietê - SP&#10;Boituva - SP</textarea></label></div>
+      <label>Empresas por Cidade<input id="qtd_cidade" type="number" value="20"></label>
+      <label>Notificação<select id="notif_modo"><option value="email">Só E-mail</option><option value="whatsapp">Só WhatsApp</option><option value="ambos">WhatsApp + E-mail</option><option value="nenhum">Nenhum (só salva)</option></select></label>
+      <button class="btn" onclick="iniciarVarredura()">▶ Iniciar Varredura 24/7</button>
+      <p id="varMsg"></p>
+    </div>
+
+    <div class="card">
+      <h3>Adicionar Novo Módulo, Site ou Porte</h3>
+      <div class="grid">
+        <div><input id="novoMod" placeholder="Nome do novo módulo"><input id="novoModSinal" placeholder="Sinais de prova"><button class="btn out" onclick="addItem('modulo')">+ Novo Módulo</button></div>
+        <div><input id="novoSite" placeholder="Nome do novo site (ex: Kwai)"><input id="novoSiteUrl" placeholder="https://..."><button class="btn out" onclick="addItem('site')">+ Novo Site</button></div>
+        <div><input id="novoPorte" placeholder="Novo porte (ex: Super Micro)"><input id="novoPorteFaixa" placeholder="1 a 3 funcionários"><button class="btn out" onclick="addItem('porte')">+ Novo Porte</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXCEL DO MÊS -->
+  <div id="p-excel" class="hidden">
+    <div class="card">
+      <h3>Empresas Encontradas (Revisão Manual Obrigatória)</h3>
+      <table><thead><tr><th>Data</th><th>Cidade</th><th>Empresa</th><th>Telefone</th><th>Score</th><th>Provas</th><th>Status</th><th>Ação</th></tr></thead><tbody id="tbEmp"></tbody></table>
+    </div>
+  </div>
+
+  <!-- CONFIGURAÇÕES -->
+  <div id="p-config" class="hidden">
+    <div class="card">
+      <h3>Canais de Notificação</h3>
+      <label>E-mail de Alerta<input id="cfgEmail" placeholder="seuemail@dominio.com"></label>
+      <label>WhatsApp (com DDI 55)<input id="cfgZap" placeholder="5511999999999"></label>
+      <label>URL API WhatsApp (Evolution/Z-API)<input id="cfgZapToken" placeholder="https://..."></label>
+      <label>Webhook Extra (Telegram/Discord)<input id="cfgWebhook" placeholder="https://..."></label>
+      <button class="btn" onclick="salvarNotif()">Salvar Configurações</button>
+      <p id="cfgMsg" class="ok"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+function aba(id, btn){
+  ['dash','nova','excel','config'].forEach(x=>document.getElementById('p-'+x).classList.add('hidden'));
+  document.getElementById('p-'+id).classList.remove('hidden');
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+}
+function ajustarCampos(){
+  const m=document.getElementById('modo').value;
+  ['cEstado','cMacro','cRaio','cMetro','cCidade','cPop','cVarias'].forEach(x=>document.getElementById(x).classList.add('hidden'));
+  if(m==='estado'||m==='combinada') document.getElementById('cEstado').classList.remove('hidden');
+  if(m==='macro') document.getElementById('cMacro').classList.remove('hidden');
+  if(m==='raio'||m==='combinada') document.getElementById('cRaio').classList.remove('hidden');
+  if(m==='metro') document.getElementById('cMetro').classList.remove('hidden');
+  if(m==='cidade') document.getElementById('cCidade').classList.remove('hidden');
+  if(m==='pop'||m==='combinada') document.getElementById('cPop').classList.remove('hidden');
+  if(m==='varias') document.getElementById('cVarias').classList.remove('hidden');
+}
+async function carregar(){
+  const r=await fetch('/api/estado'); if(!r.ok) return;
+  const d=await r.json();
+  document.getElementById('statusBadge').textContent='Robô: '+d.worker_status.toUpperCase();
+  document.getElementById('dMes').textContent='VOTICE_INVESTIGADOR_'+d.mes_ref+'.xlsx';
+  document.getElementById('dTotal').textContent=d.empresas.length;
+  document.getElementById('dRegiao').textContent=d.regiao_ativa;
+  document.getElementById('dProg').textContent=d.fila_feitas+' / '+d.fila_total+' cidades';
+  document.getElementById('dLogs').innerHTML=d.logs.map(l=>`<div>[${l.quando}] <b>${l.acao}</b>: ${l.detalhe}</div>`).join('');
+  document.getElementById('tbEmp').innerHTML=d.empresas.map(e=>`<tr><td>${e.data_investigacao}</td><td>${e.cidade}</td><td><b>${e.nome}</b></td><td>${e.telefone}</td><td>${e.score}</td><td>${e.provas_json}</td><td>${e.status}</td><td><button class="btn out" onclick="aprovar(${e.id})">Aprovar</button></td></tr>`).join('');
+}
+async function iniciarVarredura(){
+  const body={
+    modo:document.getElementById('modo').value,
+    estado:document.getElementById('estado').value,
+    macro:document.getElementById('macro').value,
+    centro:document.getElementById('centro').value,
+    raio_km:document.getElementById('raio_km').value,
+    metro:document.getElementById('metro').value,
+    cidade_unica:document.getElementById('cidade_unica').value,
+    pop_min:document.getElementById('pop_min').value,
+    pop_max:document.getElementById('pop_max').value,
+    varias_cidades:document.getElementById('varias_cidades').value,
+    empresas_por_cidade:document.getElementById('qtd_cidade').value,
+    notif_modo:document.getElementById('notif_modo').value
+  };
+  const r=await fetch('/api/varredura/iniciar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json();
+  const el=document.getElementById('varMsg');
+  if(!d.ok){el.className='err';el.textContent=d.erro;return}
+  el.className='ok';el.textContent='✅ Varredura iniciada! '+d.total_cidades+' cidade(s) na fila.';
+  carregar();
+}
+async function cmd(c){
+  const r=await fetch('/api/varredura/comando/'+c,{method:'POST'});
+  const d=await r.json();
+  document.getElementById('cmdMsg').textContent=d.msg||'';
+  carregar();
+}
+async function aprovar(id){
+  await fetch('/api/empresa/'+id+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'Aprovado para Contato'})});
+  carregar();
+}
+async function addItem(tipo){
+  let body={};
+  if(tipo==='modulo') body={nome:document.getElementById('novoMod').value,sinais:document.getElementById('novoModSinal').value};
+  if(tipo==='site') body={nome:document.getElementById('novoSite').value,url_base:document.getElementById('novoSiteUrl').value};
+  if(tipo==='porte') body={nome:document.getElementById('novoPorte').value,faixa:document.getElementById('novoPorteFaixa').value};
+  await fetch('/api/cadastro/'+tipo,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  alert('Adicionado com sucesso!');
+}
+async function salvarNotif(){
+  await fetch('/api/config/notificacoes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    notif_email:document.getElementById('cfgEmail').value,
+    notif_whatsapp:document.getElementById('cfgZap').value,
+    notif_zap_token:document.getElementById('cfgZapToken').value,
+    notif_webhook:document.getElementById('cfgWebhook').value
+  })});
+  document.getElementById('cfgMsg').textContent='✅ Salvo!';
+}
+document.addEventListener('keydown',e=>{
+  if(['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+  const k=e.key.toUpperCase();
+  if(['P','R','S','E'].includes(k)) cmd(k);
+});
+carregar(); setInterval(carregar, 10000);
+</script>
+</body>
+</html>
